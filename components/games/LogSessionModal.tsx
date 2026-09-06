@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { logPlaySessionAction } from "@/app/actions/games";
 import { X, Clock, Plus } from "lucide-react";
 
+import { useToast } from "@/components/ui/Toast";
+
 interface LogSessionModalProps {
     userGameId: string;
     gameTitle: string;
@@ -16,6 +18,7 @@ export function LogSessionModal({ userGameId, gameTitle, currentHours, isOpen, o
     const [hours, setHours] = useState<string>("1.0");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     if (!isOpen) return null;
 
@@ -35,10 +38,13 @@ export function LogSessionModal({ userGameId, gameTitle, currentHours, isOpen, o
 
         if (res.error) {
             setError(res.error);
+            showToast(res.error, "error");
         } else {
+            showToast(`Logged +${parsed}h for "${gameTitle}"!`, "success");
             onClose();
         }
     };
+
 
     const setQuickPreset = (val: number) => {
         setHours(val.toString());
@@ -101,8 +107,8 @@ export function LogSessionModal({ userGameId, gameTitle, currentHours, isOpen, o
                                     type="button"
                                     onClick={() => setQuickPreset(preset)}
                                     className={`py-1 px-2 text-xs font-mono-num rounded-[2px] border transition-colors ${parseFloat(hours) === preset
-                                            ? "bg-[#282824] border-[#696861] text-[#edebe6]"
-                                            : "bg-[#141413] border-[#262624] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
+                                        ? "bg-[#282824] border-[#696861] text-[#edebe6]"
+                                        : "bg-[#141413] border-[#262624] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
                                         }`}
                                 >
                                     +{preset}h

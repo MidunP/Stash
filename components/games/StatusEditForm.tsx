@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { updateGameStatusAction } from "@/app/actions/games";
 import { STATUS_LABELS } from "./GameStatusBadge";
 
+import { useToast } from "@/components/ui/Toast";
+
 interface StatusEditFormProps {
     userGameId: string;
     currentStatus: string;
@@ -12,6 +14,7 @@ interface StatusEditFormProps {
 export function StatusEditForm({ userGameId, currentStatus }: StatusEditFormProps) {
     const [status, setStatus] = useState(currentStatus);
     const [loading, setLoading] = useState(false);
+    const { showToast } = useToast();
 
     const handleStatusChange = async (newStatus: string) => {
         if (newStatus === status || loading) return;
@@ -19,12 +22,15 @@ export function StatusEditForm({ userGameId, currentStatus }: StatusEditFormProp
         setLoading(true);
         try {
             await updateGameStatusAction(userGameId, newStatus);
+            showToast(`Status updated to ${STATUS_LABELS[newStatus] || newStatus}`, "success");
         } catch (err) {
             console.error("Status update error:", err);
+            showToast("Failed to update status", "error");
         } finally {
             setLoading(false);
         }
     };
+
 
     const options = [
         { value: "PLAYING", label: STATUS_LABELS.PLAYING },
@@ -47,8 +53,8 @@ export function StatusEditForm({ userGameId, currentStatus }: StatusEditFormProp
                         disabled={loading}
                         onClick={() => handleStatusChange(opt.value)}
                         className={`px-3 py-1.5 rounded-[2px] border transition-colors uppercase font-medium ${status === opt.value
-                                ? "bg-[#282824] border-[#696861] text-[#edebe6]"
-                                : "bg-[#141413] border-[#222220] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
+                            ? "bg-[#282824] border-[#696861] text-[#edebe6]"
+                            : "bg-[#141413] border-[#222220] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
                             }`}
                     >
                         {opt.label}

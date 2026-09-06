@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
-import { Search, LogOut, Menu, X, Gamepad2 } from "lucide-react";
+import { Search, LogOut, Menu, X, Gamepad2, User } from "lucide-react";
 
 interface NavbarProps {
     userEmail?: string;
@@ -21,7 +21,7 @@ export function Navbar({ userEmail }: NavbarProps) {
         { href: "/stats", label: "Stats" },
     ];
 
-    const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+    const isActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
     return (
         <header className="bg-[#141413] border-b border-[#262624] sticky top-0 z-40">
@@ -44,8 +44,8 @@ export function Navbar({ userEmail }: NavbarProps) {
                                     key={link.href}
                                     href={link.href}
                                     className={`px-3 py-1.5 rounded-[2px] transition-colors ${active
-                                            ? "text-[#edebe6] bg-[#222220] font-semibold border-b-2 border-[#9c9a92]"
-                                            : "text-[#9c9a92] hover:text-[#edebe6] hover:bg-[#1a1a18]"
+                                        ? "text-[#edebe6] bg-[#222220] font-semibold border-b-2 border-[#9c9a92]"
+                                        : "text-[#9c9a92] hover:text-[#edebe6] hover:bg-[#1a1a18]"
                                         }`}
                                 >
                                     {link.label}
@@ -60,8 +60,8 @@ export function Navbar({ userEmail }: NavbarProps) {
                     <Link
                         href="/search"
                         className={`px-3 py-1.5 text-xs font-mono-num rounded-[2px] border transition-colors flex items-center gap-2 ${isActive("/search")
-                                ? "bg-[#222220] border-[#4a4a44] text-[#edebe6]"
-                                : "bg-[#171716] border-[#262624] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
+                            ? "bg-[#222220] border-[#4a4a44] text-[#edebe6]"
+                            : "bg-[#171716] border-[#262624] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
                             }`}
                     >
                         <Search className="w-3.5 h-3.5" />
@@ -70,9 +70,17 @@ export function Navbar({ userEmail }: NavbarProps) {
 
                     {userEmail && (
                         <div className="hidden sm:flex items-center gap-3 pl-2 border-l border-[#262624]">
-                            <span className="text-xs font-mono-num text-[#9c9a92] truncate max-w-[140px]" title={userEmail}>
-                                {userEmail.split("@")[0]}
-                            </span>
+                            <Link
+                                href="/profile"
+                                className={`text-xs font-mono-num px-2 py-1 rounded-[2px] flex items-center gap-1.5 transition-colors ${isActive("/profile")
+                                    ? "bg-[#222220] text-[#edebe6] font-semibold"
+                                    : "text-[#9c9a92] hover:text-[#edebe6] hover:bg-[#1a1a18]"
+                                    }`}
+                                title="Account Settings"
+                            >
+                                <User className="w-3.5 h-3.5 text-[#9c9a92]" />
+                                <span className="truncate max-w-[120px]">{userEmail.split("@")[0]}</span>
+                            </Link>
                             <form action={logoutAction}>
                                 <button
                                     type="submit"
@@ -113,17 +121,28 @@ export function Navbar({ userEmail }: NavbarProps) {
                         </Link>
                     ))}
                     {userEmail && (
-                        <div className="pt-2 border-t border-[#262624] flex items-center justify-between text-xs font-mono-num text-[#9c9a92]">
-                            <span>{userEmail}</span>
-                            <form action={logoutAction}>
-                                <button type="submit" className="text-[#f87171] uppercase font-semibold">
-                                    Log out
-                                </button>
-                            </form>
-                        </div>
+                        <>
+                            <Link
+                                href="/profile"
+                                onClick={() => setMobileOpen(false)}
+                                className={`block px-3 py-2 rounded-[2px] ${isActive("/profile") ? "bg-[#222220] text-[#edebe6]" : "text-[#9c9a92]"
+                                    }`}
+                            >
+                                Profile & Settings
+                            </Link>
+                            <div className="pt-2 border-t border-[#262624] flex items-center justify-between text-xs font-mono-num text-[#9c9a92]">
+                                <span>{userEmail}</span>
+                                <form action={logoutAction}>
+                                    <button type="submit" className="text-[#f87171] uppercase font-semibold">
+                                        Log out
+                                    </button>
+                                </form>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
         </header>
     );
 }
+

@@ -87,3 +87,53 @@ export async function logoutAction() {
     await clearSessionCookie();
     redirect("/login");
 }
+
+export async function changePasswordAction(prevState: AuthState | null, formData: FormData): Promise<AuthState> {
+    const session = await getSession();
+    if (!session?.userId) {
+        return { error: "Unauthorized" };
+    }
+
+    const currentPassword = formData.get("currentPassword")?.toString();
+    const newPassword = formData.get("newPassword")?.toString();
+    const confirmPassword = formData.get("confirmPassword")?.toString();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        return { error: "Please fill in all password fields." };
+    }
+
+    if (newPassword.length < 6) {
+        return { error: "New password must be at least 6 characters long." };
+    }
+
+    if (newPassword !== confirmPassword) {
+        return { error: "New passwords do not match." };
+    }
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+        });
+
+        if (!user) {
+            return { error: "User account not found." };
+        }
+
+        const isValid = await verifyPassword(currentPassword, user.passwordHash);
+        if (!isValid) {
+            return { error: "Incorrect current password." };
+        }
+
+        const newHash = await hashPassword(newPassword);
+        await prisma.user.update({
+            where: { id: session.userId },
+            data: { passwordHash: newHash },
+        });
+
+        return { success: true };
+    } catch (err) {
+        console.error("Change password error:", err);
+        return { error: "Failed to change password. Please try again." };
+    }
+}
+

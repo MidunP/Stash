@@ -8,6 +8,8 @@ import { GameCover } from "./GameCover";
 import { STATUS_LABELS } from "./GameStatusBadge";
 import { X, Check } from "lucide-react";
 
+import { useToast } from "@/components/ui/Toast";
+
 interface AddGameModalProps {
     game: NormalizedGame;
     isOpen: boolean;
@@ -19,6 +21,7 @@ export function AddGameModal({ game, isOpen, onClose }: AddGameModalProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const { showToast } = useToast();
 
     if (!isOpen) return null;
 
@@ -39,7 +42,9 @@ export function AddGameModal({ game, isOpen, onClose }: AddGameModalProps) {
 
         if (res?.error) {
             setError(res.error);
+            showToast(res.error, "error");
         } else {
+            showToast(`Added "${game.title}" to library!`, "success");
             onClose();
             if (selectedStatus === "PLAYING") {
                 router.push("/playing");
@@ -50,6 +55,7 @@ export function AddGameModal({ game, isOpen, onClose }: AddGameModalProps) {
             }
         }
     };
+
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-[1px]">
@@ -87,8 +93,8 @@ export function AddGameModal({ game, isOpen, onClose }: AddGameModalProps) {
                                 key={st.value}
                                 onClick={() => setSelectedStatus(st.value)}
                                 className={`flex items-center justify-between p-3 rounded-[2px] border cursor-pointer transition-colors ${selectedStatus === st.value
-                                        ? "bg-[#222220] border-[#696861] text-[#edebe6]"
-                                        : "bg-[#141413] border-[#262624] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
+                                    ? "bg-[#222220] border-[#696861] text-[#edebe6]"
+                                    : "bg-[#141413] border-[#262624] text-[#9c9a92] hover:border-[#383834] hover:text-[#edebe6]"
                                     }`}
                             >
                                 <span className="font-heading font-medium text-base tracking-wide uppercase">

@@ -223,3 +223,123 @@ export async function removeUserGameAction(userGameId: string) {
 
     return { success: true };
 }
+
+export async function exportUserLibraryAction() {
+    const session = await getSession();
+    if (!session?.userId) {
+        throw new Error("Unauthorized");
+    }
+
+    const userGames = await prisma.userGame.findMany({
+        where: { userId: session.userId },
+        include: {
+            game: {
+                include: {
+                    platforms: {
+                        include: { platform: true },
+                    },
+                },
+            },
+            statusHistory: true,
+            playSessions: true,
+        },
+    });
+
+    const exportData = userGames.map((ug) => ({
+        externalId: ug.game.externalId,
+        title: ug.game.title,
+        slug: ug.game.slug,
+        coverUrl: ug.game.coverUrl,
+        releaseYear: ug.game.releaseYear,
+        description: ug.game.description,
+        platforms: ug.game.platforms.map((p) => p.platform.name),
+        status: ug.status,
+        hoursLogged: ug.hoursLogged,
+        rating: ug.rating,
+        notes: ug.notes,
+        dateAdded: ug.dateAdded,
+        updatedAt: ug.updatedAt,
+    }));
+
+    return { success: true, data: exportData };
+}
+
+export async function importUserLibraryAction(items: any[]) {
+    const session = await getSession();
+    if (!session?.userId) {
+        return { error: "Unauthorized" };
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return { error: "Invalid import format. Expected array of game entries." };
+    }
+
+    let importedCount = 0;
+    let skippedCount = 0;
+
+    for (const item of items) {
+        if (!item.title || !item.externalId) {
+            skippedCount++;
+            continue;
+        }
+
+        try {
+            const normalized = {
+                externalId: String(item.externalId),
+                title: String(item.title),
+                slug: item.slug ? String(item.slug) : String(item.title).toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+                coverUrl: item.coverUrl || null,
+                releaseDate: item.releaseDate || null,
+                releaseYear: item.releaseYear ? Number(item.releaseYear) : null,
+                description: item.description || null,
+                platforms: Array.isArray(item.platforms) ? item.platforms : [],
+            };
+
+            const dbGame = await getOrCreateDbGame(normalized);
+
+            const existing = await prisma.userGame.findUnique({
+                where: {
+                    userId_gameId: {
+                        userId: session.userId,
+                        gameId: dbGame.id,
+                    },
+                },
+            });
+
+            if (existing) {
+                skippedCount++;
+                continue;
+            }
+
+            await prisma.userGame.create({
+                data: {
+                    userId: session.userId,
+                    gameId: dbGame.id,
+                    status: item.status || "WANT_TO_PLAY",
+                    hoursLogged: typeof item.hoursLogged === "number" ? item.hoursLogged : 0,
+                    rating: typeof item.rating === "number" ? item.rating : null,
+                    notes: item.notes || null,
+                    statusHistory: {
+                        create: {
+                            fromStatus: null,
+                            toStatus: item.status || "WANT_TO_PLAY",
+                        },
+                    },
+                },
+            });
+
+            importedCount++;
+        } catch (err) {
+            console.error("Error importing item:", item, err);
+            skippedCount++;
+        }
+    }
+
+    revalidatePath("/playing");
+    revalidatePath("/watchlist");
+    revalidatePath("/library");
+    revalidatePath("/stats");
+
+    return { success: true, importedCount, skippedCount };
+}
+

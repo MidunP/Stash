@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { updateGameNotesAndRatingAction } from "@/app/actions/games";
 import { Check, Save } from "lucide-react";
 
+import { useToast } from "@/components/ui/Toast";
+
 interface GameNotesAndRatingFormProps {
     userGameId: string;
     initialRating: number | null;
@@ -19,6 +21,7 @@ export function GameNotesAndRatingForm({
     const [notes, setNotes] = useState<string>(initialNotes || "");
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string; isError?: boolean } | null>(null);
+    const { showToast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,6 +31,7 @@ export function GameNotesAndRatingForm({
         const parsedRating = rating.trim() !== "" ? parseFloat(rating) : null;
         if (parsedRating !== null && (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 10)) {
             setMessage({ text: "Rating must be a number between 1.0 and 10.0", isError: true });
+            showToast("Rating must be between 1.0 and 10.0", "error");
             setLoading(false);
             return;
         }
@@ -37,11 +41,14 @@ export function GameNotesAndRatingForm({
 
         if (res.error) {
             setMessage({ text: res.error, isError: true });
+            showToast(res.error, "error");
         } else {
             setMessage({ text: "Saved successfully!" });
+            showToast("Notes & Rating saved successfully!", "success");
             setTimeout(() => setMessage(null), 3000);
         }
     };
+
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,8 +90,8 @@ export function GameNotesAndRatingForm({
             {message && (
                 <div
                     className={`p-2.5 text-xs font-mono-num rounded-[2px] flex items-center gap-2 ${message.isError
-                            ? "bg-[#291617] border border-[#4d2325] text-[#f87171]"
-                            : "bg-[#142419] border border-[#22472d] text-[#4ade80]"
+                        ? "bg-[#291617] border border-[#4d2325] text-[#f87171]"
+                        : "bg-[#142419] border border-[#22472d] text-[#4ade80]"
                         }`}
                 >
                     {!message.isError && <Check className="w-3.5 h-3.5" />}
