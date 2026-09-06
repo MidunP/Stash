@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  userGames    UserGame[]
+}
+
+model Game {
+  id          String         @id @default(cuid())
+  externalId  String         @unique
+  title       String
+  slug        String
+  coverUrl    String?
+  releaseDate String?
+  releaseYear Int?
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  platforms   GamePlatform[]
+  userGames   UserGame[]
+}
+
+model Platform {
+  id    String         @id @default(cuid())
+  name  String         @unique
+  games GamePlatform[]
+}
+
+model GamePlatform {
+  id         String   @id @default(cuid())
+  gameId     String
+  platformId String
+  game       Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  platform   Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, platformId])
+}
+
+model UserGame {
+  id            String          @id @default(cuid())
+  userId        String
+  gameId        String
+  status        String          // WANT_TO_PLAY, PLAYING, COMPLETED, ON_HOLD, DROPPED
+  hoursLogged   Float           @default(0.0)
+  rating        Float?          // 1.0 - 10.0 numeric rating
+  notes         String?
+  dateAdded     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game          Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  statusHistory StatusHistory[]
+  playSessions  PlaySession[]
+
+  @@unique([userId, gameId])
+}
+
+model StatusHistory {
+  id         String   @id @default(cuid())
+  userGameId String
+  fromStatus String?
+  toStatus   String
+  changedAt  DateTime @default(now())
+  userGame   UserGame @relation(fields: [userGameId], references: [id], onDelete: Cascade)
+}
+
+model PlaySession {
+  id         String   @id @default(cuid())
+  userGameId String
+  hours      Float
+  playedAt   DateTime @default(now())
+  userGame   UserGame @relation(fields: [userGameId], references: [id], onDelete: Cascade)
+}
