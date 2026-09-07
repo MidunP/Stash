@@ -32,9 +32,13 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
         }
 
         await setSessionCookie(user.id, user.email);
-    } catch (err) {
+    } catch (err: any) {
         console.error("Login error:", err);
-        return { error: "An unexpected error occurred. Please try again." };
+        const msg = err?.message || "";
+        if (msg.includes("DATABASE_URL") || msg.includes("PrismaClient") || msg.includes("connect")) {
+            return { error: "Database connection failed. Please verify DATABASE_URL in Vercel environment variables." };
+        }
+        return { error: err?.message || "An unexpected error occurred. Please try again." };
     }
 
     redirect("/playing");
@@ -75,9 +79,13 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
         });
 
         await setSessionCookie(user.id, user.email);
-    } catch (err) {
+    } catch (err: any) {
         console.error("Signup error:", err);
-        return { error: "Failed to create account. Please try again." };
+        const msg = err?.message || "";
+        if (msg.includes("DATABASE_URL") || msg.includes("PrismaClient") || msg.includes("connect")) {
+            return { error: "Database connection failed. Please verify DATABASE_URL in Vercel environment variables." };
+        }
+        return { error: err?.message || "Failed to create account. Please try again." };
     }
 
     redirect("/playing");
