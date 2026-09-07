@@ -1,6 +1,6 @@
 # Game Tracker
 
-Live Demo: https://stash-ten-psi.vercel.app
+
 
 Building a platform where people can:
 - Sign up and log in securely
