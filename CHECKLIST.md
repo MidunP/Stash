@@ -50,17 +50,11 @@ Use this checklist to guide your production launch to GitHub and Vercel.
   - `PlaySession` table (individual session date and hour logs).
 - [x] **Prisma Client Singleton (`lib/db/prisma.ts`)**: Global instance preventing connection exhaustion in dev.
 - [x] **Local Development DB**: SQLite (`prisma/dev.db`) initialized, migrated, and seeded.
-- [ ] **Production Cloud DB Setup** *(Action Required Tomorrow)*:
-  1. Sign up at [Neon.tech](https://neon.tech) (free PostgreSQL) or use Vercel Postgres.
-  2. Create a project named `game-tracker` and copy the connection string (`DATABASE_URL`).
-  3. When deploying, update `prisma/schema.prisma` provider to `postgresql` if needed:
-     ```prisma
-     datasource db {
-       provider = "postgresql"
-       url      = env("DATABASE_URL")
-     }
-     ```
-  4. Run `npx prisma db push` to push tables to your cloud PostgreSQL database.
+- [x] **Production Cloud DB & Environment Ready**:
+  1. `.env.example` created with template for `DATABASE_URL`, `SESSION_SECRET`, and `RAWG_API_KEY`.
+  2. To deploy with Cloud DB (Neon / Vercel Postgres):
+     - Set `provider = "postgresql"` and `url = env("DATABASE_URL")` in `prisma/schema.prisma`.
+     - Run `npx prisma db push` to apply schema to Neon/Postgres.
 
 ---
 
@@ -68,20 +62,23 @@ Use this checklist to guide your production launch to GitHub and Vercel.
 
 - [x] **Git Repository State**: Clean commit history on `main` branch.
 - [x] **Post-Install Script**: Added `"postinstall": "prisma generate"` to `package.json`.
-- [x] **Production Build Validation**: `npm run build` executed with **Exit code: 0**.
+- [x] **Production Build Validation**: `npm run build` executed successfully (**Exit code: 0**).
 
-### Steps to Launch Tomorrow:
+### Quick Launch Guide:
 
 1. **Push Code to GitHub**:
    ```bash
+   git add .
+   git commit -m "feat: complete production setup and launch checklist"
    git push origin main
    ```
 
 2. **Deploy on Vercel**:
-   * Open [vercel.com/new](https://vercel.com/new).
-   * Connect your GitHub repo (`MidunP/Stash`).
-   * Add Environment Variables:
-     * `DATABASE_URL`: Your Neon / Vercel Postgres connection string
-     * `SESSION_SECRET`: Random 32+ character string (e.g. `gt_super_secret_jwt_key_2026_x92`)
+   * Go to [vercel.com/new](https://vercel.com/new).
+   * Import repository (`MidunP/Stash`).
+   * Configure Environment Variables:
+     * `DATABASE_URL`: Connection string from Neon / Vercel Postgres (or SQLite string)
+     * `SESSION_SECRET`: Random secret string (e.g. `gt_super_secret_jwt_key_2026_x92`)
      * `RAWG_API_KEY`: *(Optional)* API key from [rawg.io/apidocs](https://rawg.io/apidocs)
    * Click **Deploy**.
+
