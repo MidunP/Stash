@@ -2,7 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { BarChart2, CheckCircle2, Clock, Gamepad2, Award } from "lucide-react";
+import { GameCover } from "@/components/games/GameCover";
+import { BarChart2, CheckCircle2, Clock, Gamepad2, Award, Star, Flame } from "lucide-react";
 
 export const metadata = {
     title: "Statistics — Game Tracker",
@@ -13,9 +14,10 @@ export default async function StatsPage() {
     const userId = session!.userId;
     const currentYear = new Date().getFullYear();
 
-    // 1. Fetch user games
+    // 1. Fetch user games with game metadata
     const userGames = await prisma.userGame.findMany({
         where: { userId },
+        include: { game: true },
     });
 
     // 2. Fetch play sessions for current year
@@ -64,6 +66,18 @@ export default async function StatsPage() {
         ratedGames.length > 0
             ? (ratedGames.reduce((acc, g) => acc + (g.rating || 0), 0) / ratedGames.length).toFixed(1)
             : null;
+
+    // Top Played Games (sorted by hoursLogged desc)
+    const topPlayedGames = [...userGames]
+        .filter((g) => g.hoursLogged > 0)
+        .sort((a, b) => b.hoursLogged - a.hoursLogged)
+        .slice(0, 4);
+
+    // Top Rated Games (sorted by rating desc)
+    const topRatedGames = [...userGames]
+        .filter((g) => g.rating !== null && g.rating > 0)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        .slice(0, 4);
 
     const hasData = totalLibraryCount > 0;
 
@@ -139,6 +153,67 @@ export default async function StatsPage() {
                             </p>
                         </div>
                     </div>
+
+                    {/* Top Games Showcases with Posters */}
+                    {topPlayedGames.length > 0 && (
+                        <div className="bg-[#171716] border border-[#262624] rounded-[3px] p-5">
+                            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-[#262624]">
+                                <Flame className="w-4 h-4 text-[#f59e0b]" />
+                                <h3 className="font-heading font-semibold text-lg text-[#edebe6] uppercase">
+                                    Most Played Games
+                                </h3>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {topPlayedGames.map((ug) => (
+                                    <Link
+                                        key={ug.id}
+                                        href={`/game/${ug.game.id}`}
+                                        className="bg-[#111110] border border-[#262624] hover:border-[#383834] rounded-[3px] p-3 flex items-center gap-3 transition-colors group"
+                                    >
+                                        <GameCover title={ug.game.title} coverUrl={ug.game.coverUrl} className="w-12 h-16" />
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="font-heading font-bold text-sm text-[#edebe6] group-hover:text-white truncate">
+                                                {ug.game.title}
+                                            </h4>
+                                            <p className="text-xs font-mono-num text-[#f59e0b] font-semibold mt-1">
+                                                {ug.hoursLogged.toFixed(1)} hrs
+                                            </p>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {topRatedGames.length > 0 && (
+                        <div className="bg-[#171716] border border-[#262624] rounded-[3px] p-5">
+                            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-[#262624]">
+                                <Star className="w-4 h-4 text-[#f59e0b]" />
+                                <h3 className="font-heading font-semibold text-lg text-[#edebe6] uppercase">
+                                    Highest Rated Games
+                                </h3>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {topRatedGames.map((ug) => (
+                                    <Link
+                                        key={ug.id}
+                                        href={`/game/${ug.game.id}`}
+                                        className="bg-[#111110] border border-[#262624] hover:border-[#383834] rounded-[3px] p-3 flex items-center gap-3 transition-colors group"
+                                    >
+                                        <GameCover title={ug.game.title} coverUrl={ug.game.coverUrl} className="w-12 h-16" />
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="font-heading font-bold text-sm text-[#edebe6] group-hover:text-white truncate">
+                                                {ug.game.title}
+                                            </h4>
+                                            <p className="text-xs font-mono-num text-[#edebe6] font-semibold mt-1">
+                                                ★ {ug.rating?.toFixed(1)} / 10
+                                            </p>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Breakdown Table & Secondary Statistics */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

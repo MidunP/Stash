@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useActionState } from "react";
+import React, { useState, useActionState } from "react";
 import Link from "next/link";
 import { loginAction, AuthState } from "@/app/actions/auth";
 import { Gamepad2 } from "lucide-react";
@@ -10,6 +10,13 @@ export default function LoginPage() {
         loginAction,
         {}
     );
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
+    const fillDemoAccount = () => {
+        setEmail("demo@example.com");
+        setPassword("password123");
+    };
 
     return (
         <div className="min-h-screen bg-[#111110] flex flex-col justify-center items-center p-4">
@@ -29,9 +36,19 @@ export default function LoginPage() {
 
                 {/* Form Card */}
                 <div className="bg-[#171716] border border-[#262624] rounded-[3px] p-6 shadow-xl">
-                    <h2 className="font-heading font-semibold text-lg text-[#edebe6] uppercase mb-4 pb-2 border-b border-[#262624]">
-                        Sign In
-                    </h2>
+                    <div className="flex items-center justify-between pb-2 mb-4 border-b border-[#262624]">
+                        <h2 className="font-heading font-semibold text-lg text-[#edebe6] uppercase">
+                            Sign In
+                        </h2>
+                        <button
+                            type="button"
+                            onClick={fillDemoAccount}
+                            className="text-[11px] font-mono-num text-[#f59e0b] hover:underline"
+                            title="Fill demo account credentials"
+                        >
+                            Quick Demo Login
+                        </button>
+                    </div>
 
                     <form action={formAction} className="space-y-4">
                         <div>
@@ -42,6 +59,8 @@ export default function LoginPage() {
                                 type="email"
                                 name="email"
                                 required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 autoComplete="email"
                                 placeholder="you@example.com"
                                 className="w-full bg-[#111110] border border-[#383834] rounded-[2px] px-3 py-2 text-sm text-[#edebe6] placeholder-[#696861] focus:outline-none focus:border-[#9c9a92] font-mono-num"
@@ -56,6 +75,8 @@ export default function LoginPage() {
                                 type="password"
                                 name="password"
                                 required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="current-password"
                                 placeholder="••••••••"
                                 className="w-full bg-[#111110] border border-[#383834] rounded-[2px] px-3 py-2 text-sm text-[#edebe6] placeholder-[#696861] focus:outline-none focus:border-[#9c9a92] font-mono-num"
@@ -71,13 +92,16 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={isPending}
-                            className="w-full py-2.5 text-sm font-mono-num font-semibold bg-[#2e2e2a] hover:bg-[#3d3d37] text-[#edebe6] border border-[#4a4a44] rounded-[2px] transition-colors uppercase tracking-wide disabled:opacity-50 mt-2"
+                            className="w-full py-2.5 text-sm font-mono-num font-semibold bg-[#2e2e2a] hover:bg-[#3d3d37] text-[#edebe6] border border-[#4a4a44] rounded-[2px] transition-colors uppercase tracking-wide disabled:opacity-50 mt-2 cursor-pointer"
                         >
                             {isPending ? "Signing in..." : "Sign In"}
                         </button>
                     </form>
 
-                    <div className="mt-6 pt-4 border-t border-[#262624] text-center">
+                    <div className="mt-6 pt-4 border-t border-[#262624] text-center space-y-2">
+                        <p className="text-xs font-mono-num text-[#696861]">
+                            Demo account: <span className="text-[#9c9a92]">demo@example.com</span> / <span className="text-[#9c9a92]">password123</span>
+                        </p>
                         <p className="text-xs font-mono-num text-[#9c9a92]">
                             Don&apos;t have an account?{" "}
                             <Link

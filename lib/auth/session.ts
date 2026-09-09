@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, withDbRetry } from "@/lib/db/prisma";
 
 const JWT_SECRET = new TextEncoder().encode(
     process.env.SESSION_SECRET || "game-tracker-cinematic-letterboxd-secret-key-2026"
@@ -54,13 +54,21 @@ export async function getCurrentUser() {
     const session = await getSession();
     if (!session?.userId) return null;
     try {
-        const user = await prisma.user.findUnique({
-            where: { id: session.userId },
-            select: { id: true, email: true, createdAt: true },
-        });
-        return user;
-    } catch {
+        const user = await withDbRetry((db) =>
+            db.user.findUnique({
+                where: { id: session.userId },
+                select: { id: true, email: true, createdAt: true },
+            })
+        );
+        if (user) return user;
         return null;
+    } catch (err) {
+        console.warn("[getCurrentUser] Transient DB error, falling back to JWT payload:", err);
+        return {
+            id: session.userId,
+            email: session.email,
+            createdAt: new Date(),
+        };
     }
 }
 

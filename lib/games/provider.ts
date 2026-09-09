@@ -7,7 +7,9 @@ export async function searchGames(query: string): Promise<NormalizedGame[]> {
 }
 
 export async function getGameDetails(externalId: string): Promise<NormalizedGame | null> {
-    // First check database cache
+    const external = await fetchRawgGameById(externalId);
+
+    // Check database cache
     const dbGame = await prisma.game.findUnique({
         where: { externalId },
         include: {
@@ -20,20 +22,30 @@ export async function getGameDetails(externalId: string): Promise<NormalizedGame
     });
 
     if (dbGame) {
+        // If DB has broken media.rawg.io link or missing coverUrl, update with external clean URL
+        let coverUrl = dbGame.coverUrl;
+        if ((!coverUrl || coverUrl.includes("media.rawg.io")) && external?.coverUrl) {
+            coverUrl = external.coverUrl;
+            await prisma.game.update({
+                where: { id: dbGame.id },
+                data: { coverUrl },
+            }).catch(() => { });
+        }
+
         return {
             externalId: dbGame.externalId,
             title: dbGame.title,
             slug: dbGame.slug,
-            coverUrl: dbGame.coverUrl,
+            coverUrl: coverUrl || external?.coverUrl || null,
             releaseDate: dbGame.releaseDate,
             releaseYear: dbGame.releaseYear,
-            description: dbGame.description,
-            platforms: dbGame.platforms.map((p) => p.platform.name),
+            description: dbGame.description || external?.description || null,
+            platforms: dbGame.platforms.length > 0 ? dbGame.platforms.map((p) => p.platform.name) : (external?.platforms || []),
         };
     }
 
     // Fetch from external API provider
-    return await fetchRawgGameById(externalId);
+    return external;
 }
 
 export async function getOrCreateDbGame(normalized: NormalizedGame) {
@@ -85,7 +97,21 @@ export async function getOrCreateDbGame(normalized: NormalizedGame) {
                 },
             }).catch(() => { }); // Ignore duplicate platform mapping
         }
+    } else if ((!game.coverUrl || game.coverUrl.includes("media.rawg.io")) && normalized.coverUrl) {
+        // Upgrade existing game coverUrl if broken
+        game = await prisma.game.update({
+            where: { id: game.id },
+            data: { coverUrl: normalized.coverUrl },
+            include: {
+                platforms: {
+                    include: {
+                        platform: true,
+                    },
+                },
+            },
+        });
     }
 
     return game;
 }
+
