@@ -1,0 +1,10 @@
+{
+    "functions": {
+        "app/actions/auth.ts": {
+            "maxDuration": 30
+        },
+        "app/api/warmup/route.ts": {
+            "maxDuration": 30
+        }
+    }
+}

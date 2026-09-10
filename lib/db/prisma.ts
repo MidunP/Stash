@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Singleton Prisma client (safe for Next.js hot-reload in dev)
+// In production (Vercel serverless), we create a fresh client each module load.
 // ─────────────────────────────────────────────────────────────────────────────
 declare global {
   // eslint-disable-next-line no-var
@@ -10,20 +11,33 @@ declare global {
   var _prismaDirect: PrismaClient | undefined;
 }
 
-function buildUrl(raw: string | undefined): string | undefined {
+function ensureParams(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
-  // Ensure connect_timeout is present so Neon doesn't hang forever
-  if (raw.includes("connect_timeout")) return raw;
+
+  // Parse existing params
+  const hasConnectTimeout = raw.includes("connect_timeout");
+  const hasPoolTimeout = raw.includes("pool_timeout");
+  const hasConnLimit = raw.includes("connection_limit");
+  const hasPgBouncer = raw.includes("pgbouncer");
+
   const sep = raw.includes("?") ? "&" : "?";
-  return `${raw}${sep}connect_timeout=30&pool_timeout=30`;
+  const parts: string[] = [raw];
+
+  if (!hasConnectTimeout) parts.push("connect_timeout=10");
+  if (!hasPoolTimeout && raw.includes("pooler")) parts.push("pool_timeout=10");
+  if (!hasConnLimit) parts.push("connection_limit=1");
+  if (!hasPgBouncer && raw.includes("pooler")) parts.push("pgbouncer=true");
+
+  if (parts.length === 1) return raw; // nothing to add
+  const extra = parts.slice(1).join("&");
+  return `${raw}${sep}${extra}`;
 }
 
-const poolerUrl = buildUrl(process.env.DATABASE_URL);
-// Prefer explicit DIRECT_URL, fall back to stripping "-pooler" from pooler URL
+const poolerUrl = ensureParams(process.env.DATABASE_URL);
 const directRaw =
   process.env.DIRECT_URL ||
   process.env.DATABASE_URL?.replace("-pooler.", ".");
-const directUrl = buildUrl(directRaw);
+const directUrl = ensureParams(directRaw);
 
 if (!poolerUrl) {
   throw new Error(
@@ -31,40 +45,42 @@ if (!poolerUrl) {
   );
 }
 
-export const prisma: PrismaClient =
-  global._prismaMain ??
-  new PrismaClient({
-    datasources: { db: { url: poolerUrl } },
+function makeClient(url: string, label: string): PrismaClient {
+  return new PrismaClient({
+    datasources: { db: { url } },
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
-
-const directClient: PrismaClient =
-  global._prismaDirect ??
-  (directUrl && directUrl !== poolerUrl
-    ? new PrismaClient({
-      datasources: { db: { url: directUrl } },
-      log: ["error"],
-    })
-    : prisma);
-
-if (process.env.NODE_ENV !== "production") {
-  global._prismaMain = prisma;
-  global._prismaDirect = directClient;
 }
 
+// In development, reuse across hot-reloads. In production, create fresh per
+// module invocation (correct for Vercel serverless — each function is isolated).
+export const prisma: PrismaClient =
+  process.env.NODE_ENV !== "production"
+    ? (global._prismaMain ?? (global._prismaMain = makeClient(poolerUrl, "pooler")))
+    : makeClient(poolerUrl, "pooler");
+
+const directClient: PrismaClient =
+  directUrl && directUrl !== poolerUrl
+    ? (process.env.NODE_ENV !== "production"
+      ? (global._prismaDirect ?? (global._prismaDirect = makeClient(directUrl, "direct")))
+      : makeClient(directUrl, "direct"))
+    : prisma;
+
 // ─────────────────────────────────────────────────────────────────────────────
-// withDbRetry — tries pooler first, then direct connection, with retries
+// isTransient — determine whether an error is a retriable connection error
 // ─────────────────────────────────────────────────────────────────────────────
 function isTransient(err: unknown): boolean {
   if (!err) return false;
-  const str = String(err);
-  const msg = String((err as Error)?.message ?? "").toLowerCase();
-  const stack = String((err as Error)?.stack ?? "").toLowerCase();
-  const code = String((err as { code?: string })?.code ?? "").toLowerCase();
-  const full = `${str} ${msg} ${stack} ${code}`.toLowerCase();
+  const full = [
+    String(err),
+    (err as Error)?.message ?? "",
+    String((err as { code?: string })?.code ?? ""),
+  ]
+    .join(" ")
+    .toLowerCase();
 
   return (
-    full.includes("reach") ||
+    full.includes("can't reach") ||
     full.includes("etimedout") ||
     full.includes("econnreset") ||
     full.includes("econnrefused") ||
@@ -74,45 +90,39 @@ function isTransient(err: unknown): boolean {
     full.includes("connect") ||
     full.includes("closed") ||
     full.includes("terminated") ||
-    full.includes("pool") ||
-    full.includes("ssl") ||
-    full.includes("tls") ||
-    full.includes("engine") ||
-    full.includes("prismaclient") ||
-    full.includes("postgreserror") ||
     full.includes("socket") ||
     full.includes("reset") ||
-    full.includes("handshake") ||
-    full.includes("500") ||
-    full.includes("503") ||
-    full.includes("504") ||
-    code === "p1000" ||
-    code === "p1001" ||
-    code === "p1002" ||
-    code === "p1003" ||
-    code === "p1008" ||
-    code === "p1017" ||
-    code === "p2024"
+    full.includes("engine") ||
+    full.includes("prismaclient") ||
+    full.includes("p1000") ||
+    full.includes("p1001") ||
+    full.includes("p1002") ||
+    full.includes("p1008") ||
+    full.includes("p1017")
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// withDbRetry — tries pooler first with retries, then falls back to direct URL
+// Designed to work within Vercel's 10s Hobby / 60s Pro function timeout.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function withDbRetry<T>(
   fn: (client: PrismaClient) => Promise<T>,
-  retries = 3,
-  delayMs = 1500
+  retries = 2,          // max 2 retries on pooler (3 total attempts)
+  delayMs = 800         // short delay — we need to stay within Vercel's timeout
 ): Promise<T> {
   let lastErr: unknown;
 
-  // ── Phase 1: try the pooler connection with retries ──
+  // ── Phase 1: pooler with quick retries ──
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn(prisma);
     } catch (err) {
       lastErr = err;
       if (isTransient(err) && attempt < retries) {
-        const wait = Math.min(delayMs * Math.pow(1.5, attempt), 5000);
+        const wait = delayMs * (attempt + 1); // 800ms, 1600ms
         console.warn(
-          `[DB] Pooler attempt ${attempt + 1}/${retries + 1} failed. Retrying in ${Math.round(wait)}ms…`
+          `[DB] Pooler attempt ${attempt + 1}/${retries + 1} failed. Retrying in ${wait}ms… Error: ${(err as Error)?.message}`
         );
         await new Promise((r) => setTimeout(r, wait));
       } else {
@@ -121,18 +131,14 @@ export async function withDbRetry<T>(
     }
   }
 
-  // ── Phase 2: try direct connection fallback if available ──
-  if (directClient && directClient !== prisma) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        console.warn(`[DB] Direct connection attempt ${attempt + 1}…`);
-        return await fn(directClient);
-      } catch (directErr) {
-        lastErr = directErr;
-        if (isTransient(directErr) && attempt < 1) {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-      }
+  // ── Phase 2: immediate direct connection fallback ──
+  if (directClient !== prisma) {
+    console.warn("[DB] Pooler exhausted. Trying direct connection…");
+    try {
+      return await fn(directClient);
+    } catch (directErr) {
+      console.error("[DB] Direct connection also failed:", (directErr as Error)?.message);
+      lastErr = directErr;
     }
   }
 

@@ -34,13 +34,25 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
         }
 
         await setSessionCookie(user.id, user.email);
-    } catch (err: any) {
-        console.error("Login error:", err);
-        const msg = err?.message || "";
-        if (msg.includes("DATABASE_URL") || msg.includes("PrismaClient") || msg.includes("connect") || msg.includes("reach")) {
-            return { error: "Database connection failed or timed out. Please wait a moment for the database to wake up and try again." };
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Login error:", msg);
+
+        const isConnErr =
+            msg.toLowerCase().includes("connect") ||
+            msg.toLowerCase().includes("timeout") ||
+            msg.toLowerCase().includes("reach") ||
+            msg.toLowerCase().includes("etimedout") ||
+            msg.toLowerCase().includes("econnreset") ||
+            msg.toLowerCase().includes("p1001") ||
+            msg.toLowerCase().includes("p1002");
+
+        if (isConnErr) {
+            return {
+                error: "Could not connect to the database. Please wait a moment and try again.",
+            };
         }
-        return { error: err?.message || "An unexpected error occurred. Please try again." };
+        return { error: "An unexpected error occurred. Please try again." };
     }
 
     redirect("/playing");

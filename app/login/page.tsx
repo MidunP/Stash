@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useActionState } from "react";
+import React, { useState, useEffect, useRef, useActionState } from "react";
 import Link from "next/link";
 import { loginAction, AuthState } from "@/app/actions/auth";
-import { Gamepad2, Loader2 } from "lucide-react";
+import { Gamepad2, Loader2, Wifi } from "lucide-react";
 
 export default function LoginPage() {
     const [state, formAction, isPending] = useActionState<AuthState, FormData>(
@@ -12,11 +12,39 @@ export default function LoginPage() {
     );
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [dbStatus, setDbStatus] = useState<"unknown" | "warming" | "ready">("unknown");
+    const warmupAttempts = useRef(0);
 
     useEffect(() => {
-        // Pre-warm database connection on page load for smooth sign in
-        fetch("/api/warmup").catch(() => { });
+        // Aggressively pre-warm the DB connection when the login page loads.
+        // Poll until the DB confirms it's ready.
+        const warmup = async () => {
+            try {
+                setDbStatus("warming");
+                const res = await fetch("/api/warmup");
+                const data = await res.json();
+                if (data.status === "ready") {
+                    setDbStatus("ready");
+                } else if (warmupAttempts.current < 5) {
+                    warmupAttempts.current++;
+                    setTimeout(warmup, 2000);
+                } else {
+                    // Give up showing status, let the form handle errors
+                    setDbStatus("ready");
+                }
+            } catch {
+                if (warmupAttempts.current < 3) {
+                    warmupAttempts.current++;
+                    setTimeout(warmup, 3000);
+                } else {
+                    setDbStatus("ready");
+                }
+            }
+        };
+        warmup();
     }, []);
+
+    const isWarmingUp = dbStatus === "warming";
 
     return (
         <div className="min-h-screen bg-[#111110] flex flex-col justify-center items-center p-4">
@@ -30,7 +58,7 @@ export default function LoginPage() {
                         GAME TRACKER
                     </h1>
                     <p className="text-xs font-mono-num text-[#696861] mt-1">
-                        Personal video game log & library
+                        Personal video game log &amp; library
                     </p>
                 </div>
 
@@ -40,6 +68,12 @@ export default function LoginPage() {
                         <h2 className="font-heading font-semibold text-lg text-[#edebe6] uppercase">
                             Sign In
                         </h2>
+                        {isWarmingUp && (
+                            <span className="flex items-center gap-1 text-[10px] font-mono-num text-[#f59e0b]">
+                                <Wifi className="w-3 h-3 animate-pulse" />
+                                Connecting...
+                            </span>
+                        )}
                     </div>
 
                     <form action={formAction} className="space-y-4">
