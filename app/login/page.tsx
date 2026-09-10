@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useActionState } from "react";
+import React, { useState, useEffect, useActionState } from "react";
 import Link from "next/link";
 import { loginAction, AuthState } from "@/app/actions/auth";
-import { Gamepad2 } from "lucide-react";
+import { Gamepad2, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
     const [state, formAction, isPending] = useActionState<AuthState, FormData>(
@@ -13,10 +13,10 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
-    const fillDemoAccount = () => {
-        setEmail("demo@example.com");
-        setPassword("password123");
-    };
+    useEffect(() => {
+        // Pre-warm database connection on page load for smooth sign in
+        fetch("/api/warmup").catch(() => { });
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#111110] flex flex-col justify-center items-center p-4">
@@ -40,14 +40,6 @@ export default function LoginPage() {
                         <h2 className="font-heading font-semibold text-lg text-[#edebe6] uppercase">
                             Sign In
                         </h2>
-                        <button
-                            type="button"
-                            onClick={fillDemoAccount}
-                            className="text-[11px] font-mono-num text-[#f59e0b] hover:underline"
-                            title="Fill demo account credentials"
-                        >
-                            Quick Demo Login
-                        </button>
                     </div>
 
                     <form action={formAction} className="space-y-4">
@@ -92,16 +84,20 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={isPending}
-                            className="w-full py-2.5 text-sm font-mono-num font-semibold bg-[#2e2e2a] hover:bg-[#3d3d37] text-[#edebe6] border border-[#4a4a44] rounded-[2px] transition-colors uppercase tracking-wide disabled:opacity-50 mt-2 cursor-pointer"
+                            className="w-full py-2.5 text-sm font-mono-num font-semibold bg-[#2e2e2a] hover:bg-[#3d3d37] text-[#edebe6] border border-[#4a4a44] rounded-[2px] transition-colors uppercase tracking-wide disabled:opacity-50 mt-2 cursor-pointer flex items-center justify-center gap-2"
                         >
-                            {isPending ? "Signing in..." : "Sign In"}
+                            {isPending ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#9c9a92]" />
+                                    <span>Signing in...</span>
+                                </>
+                            ) : (
+                                "Sign In"
+                            )}
                         </button>
                     </form>
 
-                    <div className="mt-6 pt-4 border-t border-[#262624] text-center space-y-2">
-                        <p className="text-xs font-mono-num text-[#696861]">
-                            Demo account: <span className="text-[#9c9a92]">demo@example.com</span> / <span className="text-[#9c9a92]">password123</span>
-                        </p>
+                    <div className="mt-6 pt-4 border-t border-[#262624] text-center">
                         <p className="text-xs font-mono-num text-[#9c9a92]">
                             Don&apos;t have an account?{" "}
                             <Link

@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useActionState } from "react";
+import React, { useEffect, useActionState } from "react";
 import Link from "next/link";
 import { signupAction, AuthState } from "@/app/actions/auth";
-import { Gamepad2 } from "lucide-react";
+import { Gamepad2, Loader2 } from "lucide-react";
 
 export default function SignupPage() {
     const [state, formAction, isPending] = useActionState<AuthState, FormData>(
         signupAction,
         {}
     );
+
+    useEffect(() => {
+        // Pre-warm database connection on page load for smooth sign up
+        fetch("/api/warmup").catch(() => { });
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#111110] flex flex-col justify-center items-center p-4">
@@ -87,9 +92,16 @@ export default function SignupPage() {
                         <button
                             type="submit"
                             disabled={isPending}
-                            className="w-full py-2.5 text-sm font-mono-num font-semibold bg-[#2e2e2a] hover:bg-[#3d3d37] text-[#edebe6] border border-[#4a4a44] rounded-[2px] transition-colors uppercase tracking-wide disabled:opacity-50 mt-2"
+                            className="w-full py-2.5 text-sm font-mono-num font-semibold bg-[#2e2e2a] hover:bg-[#3d3d37] text-[#edebe6] border border-[#4a4a44] rounded-[2px] transition-colors uppercase tracking-wide disabled:opacity-50 mt-2 flex items-center justify-center gap-2 cursor-pointer"
                         >
-                            {isPending ? "Creating account..." : "Sign Up"}
+                            {isPending ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#9c9a92]" />
+                                    <span>Creating account...</span>
+                                </>
+                            ) : (
+                                "Sign Up"
+                            )}
                         </button>
                     </form>
 
