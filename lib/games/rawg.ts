@@ -78,7 +78,7 @@ const FALLBACK_GAMES: NormalizedGame[] = [
         externalId: "rawg-red-dead-redemption-2",
         title: "Red Dead Redemption 2",
         slug: "red-dead-redemption-2",
-        coverUrl: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1172470/library_600x900_2x.jpg",
+        coverUrl: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1174180/library_600x900_2x.jpg",
         releaseDate: "2018-10-26",
         releaseYear: 2018,
         description: "America, 1899. Arthur Morgan and the Van der Linde gang are outlaws on the run. With federal agents and the best bounty hunters in the nation massing on their heels.",

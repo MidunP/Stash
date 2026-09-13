@@ -83,8 +83,14 @@ export async function getOrCreateDbGame(normalized: NormalizedGame) {
                 })
             ).catch(() => { }); // Ignore duplicate platform mapping
         }
-    } else if ((!game.coverUrl || game.coverUrl.includes("media.rawg.io")) && normalized.coverUrl) {
-        // Upgrade existing game coverUrl if broken
+    } else if (
+        normalized.coverUrl &&
+        (!game.coverUrl ||
+            game.coverUrl.includes("media.rawg.io") ||
+            (game.coverUrl.includes("1172470") && game.title.toLowerCase().includes("red dead")) ||
+            game.coverUrl !== normalized.coverUrl)
+    ) {
+        // Upgrade existing game coverUrl if broken or updated
         game = await withDbRetry((db) =>
             db.game.update({
                 where: { id: game!.id },

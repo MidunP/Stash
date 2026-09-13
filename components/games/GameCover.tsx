@@ -11,33 +11,71 @@ interface GameCoverProps {
 }
 
 const KNOWN_POSTERS: Record<string, string> = {
+    // Official verified Steam CDN 600x900 2x Library Posters
+    "red dead redemption 2": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1174180/library_600x900_2x.jpg",
+    "red dead redemption": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2668510/library_600x900_2x.jpg",
     "elden ring": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1245620/library_600x900_2x.jpg",
     "cyberpunk 2077": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1091500/library_600x900_2x.jpg",
     "baldur's gate 3": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1086940/library_600x900_2x.jpg",
     "the witcher 3: wild hunt": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/292030/library_600x900_2x.jpg",
-    "the legend of zelda: tears of the kingdom": "https://upload.wikimedia.org/wikipedia/en/f/fb/The_Legend_of_Zelda_Tears_of_the_Kingdom_cover.jpg",
+    "the witcher 3": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/292030/library_600x900_2x.jpg",
+    "the legend of zelda: tears of the kingdom": "https://images.igdb.com/igdb/image/upload/t_cover_big/co5vmg.jpg",
     "god of war ragnarök": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2322010/library_600x900_2x.jpg",
     "god of war ragnarok": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2322010/library_600x900_2x.jpg",
+    "god of war": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1593500/library_600x900_2x.jpg",
     "hollow knight": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900_2x.jpg",
-    "red dead redemption 2": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1172470/library_600x900_2x.jpg",
     "hades": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900_2x.jpg",
+    "hades ii": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1145350/library_600x900_2x.jpg",
     "persona 5 royal": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1687950/library_600x900_2x.jpg",
     "grand theft auto v": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/271590/library_600x900_2x.jpg",
+    "gta v": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/271590/library_600x900_2x.jpg",
     "portal 2": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/620/library_600x900_2x.jpg",
     "celeste": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/504230/library_600x900_2x.jpg",
     "black myth: wukong": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2358720/library_600x900_2x.jpg",
     "death stranding": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1850570/library_600x900_2x.jpg",
+    "sekiro: shadows die twice": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/814380/library_600x900_2x.jpg",
+    "dark souls iii": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/374320/library_600x900_2x.jpg",
+    "monster hunter: world": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/582010/library_600x900_2x.jpg",
+    "resident evil 4": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2050650/library_600x900_2x.jpg",
+    "the elder scrolls v: skyrim": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/489830/library_600x900_2x.jpg",
+    "fallout 4": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/377160/library_600x900_2x.jpg",
+    "starfield": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1716740/library_600x900_2x.jpg",
+    "helldivers 2": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/553850/library_600x900_2x.jpg",
+    "marvel's spider-man remastered": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1817070/library_600x900_2x.jpg",
+    "apex legends": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1172470/library_600x900_2x.jpg",
+    "counter-strike 2": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/730/library_600x900_2x.jpg",
+    "dota 2": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/570/library_600x900_2x.jpg",
 };
 
 export function resolveGameCover(title: string, coverUrl?: string | null): string | null {
     const normalized = title.toLowerCase().trim();
+
+    // 1. Direct key match
     if (KNOWN_POSTERS[normalized]) {
         return KNOWN_POSTERS[normalized];
     }
-    if (!coverUrl || coverUrl.includes("media.rawg.io")) {
-        return null;
+
+    // 2. Fuzzy substring match against known games
+    for (const [key, poster] of Object.entries(KNOWN_POSTERS)) {
+        if (normalized.includes(key) || key.includes(normalized)) {
+            // Avoid matching general terms like "red" unless title matches closely
+            if (key.length > 5) {
+                return poster;
+            }
+        }
     }
-    return coverUrl;
+
+    // 3. Catch old mismatched Apex Legends cover saved for Red Dead Redemption 2
+    if (coverUrl && coverUrl.includes("1172470") && normalized.includes("red dead")) {
+        return KNOWN_POSTERS["red dead redemption 2"];
+    }
+
+    // 4. If valid coverUrl provided (including media.rawg.io), return it
+    if (coverUrl && coverUrl.trim().length > 0) {
+        return coverUrl;
+    }
+
+    return null;
 }
 
 export function GameCover({ title, coverUrl, className = "w-12 h-16", aspectRatio = "aspect-[3/4]" }: GameCoverProps) {
@@ -89,4 +127,5 @@ export function GameCover({ title, coverUrl, className = "w-12 h-16", aspectRati
         </div>
     );
 }
+
 
