@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { withDbRetry } from "@/lib/db/prisma";
 import { GameCover } from "@/components/games/GameCover";
 import { GameStatusBadge } from "@/components/games/GameStatusBadge";
 import { Plus, Search, Bookmark } from "lucide-react";
@@ -19,7 +19,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistProps) {
     const resolvedParams = await searchParams;
     const sortOption = resolvedParams?.sort || "dateAdded";
 
-    const userGames = await prisma.userGame.findMany({
+    const userGames = await withDbRetry((db) => db.userGame.findMany({
         where: {
             userId: session!.userId,
             status: "WANT_TO_PLAY",
@@ -33,7 +33,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistProps) {
                 },
             },
         },
-    });
+    }));
 
     // Client / In-memory sorting based on requested parameter
     const sortedGames = [...userGames].sort((a, b) => {
@@ -81,8 +81,8 @@ export default async function WatchlistPage({ searchParams }: WatchlistProps) {
                                     key={opt.id}
                                     href={`/watchlist?sort=${opt.id}`}
                                     className={`px-2.5 py-1 rounded-[2px] transition-colors ${sortOption === opt.id
-                                            ? "bg-[#282824] text-[#edebe6] font-semibold"
-                                            : "text-[#9c9a92] hover:text-[#edebe6]"
+                                        ? "bg-[#282824] text-[#edebe6] font-semibold"
+                                        : "text-[#9c9a92] hover:text-[#edebe6]"
                                         }`}
                                 >
                                     {opt.label}

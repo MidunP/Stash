@@ -1,11 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
-import { searchGames } from "@/lib/games/provider";
 import { NormalizedGame } from "@/lib/games/types";
 import { GameCover } from "@/components/games/GameCover";
 import { AddGameModal } from "@/components/games/AddGameModal";
 import { Search, Plus, Loader2 } from "lucide-react";
+
+async function searchGamesApi(query: string): Promise<NormalizedGame[]> {
+    const res = await fetch(`/api/games/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error("Search failed");
+    const data = await res.json();
+    return data.games || [];
+}
 
 export default function SearchPage() {
     const [query, setQuery] = useState("");
@@ -18,7 +24,7 @@ export default function SearchPage() {
     useEffect(() => {
         let active = true;
         setLoading(true);
-        searchGames("")
+        searchGamesApi("")
             .then((res) => {
                 if (active) setResults(res);
             })
@@ -33,12 +39,11 @@ export default function SearchPage() {
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!query.trim()) return;
 
         setLoading(true);
         startTransition(async () => {
             try {
-                const res = await searchGames(query);
+                const res = await searchGamesApi(query);
                 setResults(res);
             } catch (err) {
                 console.error("Search error:", err);

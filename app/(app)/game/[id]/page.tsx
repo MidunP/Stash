@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { withDbRetry } from "@/lib/db/prisma";
 import { getGameDetails } from "@/lib/games/provider";
 import { GameCover } from "@/components/games/GameCover";
 import { GameStatusBadge } from "@/components/games/GameStatusBadge";
@@ -19,9 +19,9 @@ interface GameDetailPageProps {
 
 export async function generateMetadata({ params }: GameDetailPageProps) {
     const resolvedParams = await params;
-    const game = await prisma.game.findUnique({
-        where: { id: resolvedParams.id },
-    });
+    const game = await withDbRetry((db) =>
+        db.game.findUnique({ where: { id: resolvedParams.id } })
+    );
     return {
         title: game ? `${game.title} — Game Tracker` : "Game Detail — Game Tracker",
     };
@@ -33,36 +33,28 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
     const gameId = resolvedParams.id;
 
     // 1. Fetch game record from database
-    let dbGame = await prisma.game.findUnique({
-        where: { id: gameId },
-        include: {
-            platforms: {
-                include: { platform: true },
-            },
-        },
-    });
+    let dbGame = await withDbRetry((db) =>
+        db.game.findUnique({
+            where: { id: gameId },
+            include: { platforms: { include: { platform: true } } },
+        })
+    );
 
     if (!dbGame) {
         notFound();
     }
 
-    // 2. Fetch UserGame relationship for current user
-    const userGame = await prisma.userGame.findUnique({
-        where: {
-            userId_gameId: {
-                userId: session!.userId,
-                gameId: dbGame.id,
+    const userGame = await withDbRetry((db) =>
+        db.userGame.findUnique({
+            where: {
+                userId_gameId: { userId: session!.userId, gameId: dbGame!.id },
             },
-        },
-        include: {
-            statusHistory: {
-                orderBy: { changedAt: "desc" },
+            include: {
+                statusHistory: { orderBy: { changedAt: "desc" } },
+                playSessions: { orderBy: { playedAt: "desc" } },
             },
-            playSessions: {
-                orderBy: { playedAt: "desc" },
-            },
-        },
-    });
+        })
+    );
 
     const platforms = dbGame.platforms.map((p) => p.platform.name);
 

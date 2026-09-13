@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { withDbRetry } from "@/lib/db/prisma";
 import { GameRow } from "@/components/games/GameRow";
 import { Gamepad2, Plus, Search } from "lucide-react";
 
@@ -12,7 +12,7 @@ export const metadata = {
 export default async function PlayingPage() {
     const session = await getSession();
 
-    const userGames = await prisma.userGame.findMany({
+    const userGames = await withDbRetry((db) => db.userGame.findMany({
         where: {
             userId: session!.userId,
             status: "PLAYING",
@@ -29,7 +29,7 @@ export default async function PlayingPage() {
         orderBy: {
             updatedAt: "desc",
         },
-    });
+    }));
 
     const formattedGames = userGames.map((ug) => ({
         userGameId: ug.id,

@@ -189,6 +189,29 @@ async function fetchCheapSharkGames(query: string): Promise<NormalizedGame[]> {
     return [];
 }
 
+// Resolve proper portrait cover URL from RAWG game detail endpoint
+// Returns Steam CDN 600x900 portrait cover if available, otherwise falls back to background_image
+async function resolveCoverUrl(rawgId: number, backgroundImage: string | null, apiKey: string): Promise<string | null> {
+    try {
+        const url = `${RAWG_BASE_URL}/games/${rawgId}?key=${apiKey}`;
+        const res = await fetch(url, { next: { revalidate: 86400 } });
+        if (res.ok) {
+            const detail = await res.json();
+            // Extract Steam store URL and get App ID
+            const steamStore = detail.stores?.find((s: any) => s.store?.slug === "steam");
+            if (steamStore?.url) {
+                const match = steamStore.url.match(/\/app\/(\d+)/);
+                if (match) {
+                    return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${match[1]}/library_600x900_2x.jpg`;
+                }
+            }
+        }
+    } catch {
+        // Silently fall through
+    }
+    return backgroundImage || null;
+}
+
 export async function fetchRawgGames(query: string = ""): Promise<NormalizedGame[]> {
     const apiKey = process.env.RAWG_API_KEY;
 
@@ -200,16 +223,24 @@ export async function fetchRawgGames(query: string = ""): Promise<NormalizedGame
             if (res.ok) {
                 const data = await res.json();
                 if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-                    return data.results.map((g: any) => ({
-                        externalId: `rawg-${g.id}`,
-                        title: g.name || "Untitled Game",
-                        slug: g.slug || String(g.id),
-                        coverUrl: g.background_image || null,
-                        releaseDate: g.released || null,
-                        releaseYear: g.released ? new Date(g.released).getFullYear() : null,
-                        description: null,
-                        platforms: g.platforms ? g.platforms.map((p: any) => p.platform?.name).filter(Boolean) : [],
-                    }));
+                    // Resolve cover URLs in parallel (limit to first 10 to avoid too many requests)
+                    const results = data.results.slice(0, 20);
+                    const games = await Promise.all(
+                        results.map(async (g: any) => {
+                            const coverUrl = await resolveCoverUrl(g.id, g.background_image, apiKey);
+                            return {
+                                externalId: `rawg-${g.id}`,
+                                title: g.name || "Untitled Game",
+                                slug: g.slug || String(g.id),
+                                coverUrl,
+                                releaseDate: g.released || null,
+                                releaseYear: g.released ? new Date(g.released).getFullYear() : null,
+                                description: null,
+                                platforms: g.platforms ? g.platforms.map((p: any) => p.platform?.name).filter(Boolean) : [],
+                            };
+                        })
+                    );
+                    return games;
                 }
             }
         } catch (err) {
@@ -251,11 +282,20 @@ export async function fetchRawgGameById(externalId: string): Promise<NormalizedG
                 const res = await fetch(url, { next: { revalidate: 86400 } });
                 if (res.ok) {
                     const g = await res.json();
+                    // Try to get Steam portrait cover from stores
+                    let coverUrl: string | null = g.background_image || null;
+                    const steamStore = g.stores?.find((s: any) => s.store?.slug === "steam");
+                    if (steamStore?.url) {
+                        const match = steamStore.url.match(/\/app\/(\d+)/);
+                        if (match) {
+                            coverUrl = `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${match[1]}/library_600x900_2x.jpg`;
+                        }
+                    }
                     return {
                         externalId: `rawg-${g.id}`,
                         title: g.name || "Untitled Game",
                         slug: g.slug || String(g.id),
-                        coverUrl: g.background_image || null,
+                        coverUrl,
                         releaseDate: g.released || null,
                         releaseYear: g.released ? new Date(g.released).getFullYear() : null,
                         description: g.description_raw || g.description || null,

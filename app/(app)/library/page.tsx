@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { withDbRetry } from "@/lib/db/prisma";
 import { GameRow } from "@/components/games/GameRow";
 import { LibraryFilters } from "@/components/games/LibraryFilters";
 import { Library, Plus } from "lucide-react";
@@ -29,7 +29,7 @@ export default async function LibraryPage({ searchParams }: LibraryProps) {
     const currentSort = params?.sort || "recentlyAdded";
 
     // Query all user games
-    const allUserGames = await prisma.userGame.findMany({
+    const allUserGames = await withDbRetry((db) => db.userGame.findMany({
         where: {
             userId: session!.userId,
         },
@@ -42,7 +42,7 @@ export default async function LibraryPage({ searchParams }: LibraryProps) {
                 },
             },
         },
-    });
+    }));
 
     // Extract dynamic platform options
     const platformSet = new Set<string>();

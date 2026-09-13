@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { withDbRetry } from "@/lib/db/prisma";
 import { GameCover } from "@/components/games/GameCover";
 import { BarChart2, CheckCircle2, Clock, Gamepad2, Award, Star, Flame } from "lucide-react";
 
@@ -15,24 +15,22 @@ export default async function StatsPage() {
     const currentYear = new Date().getFullYear();
 
     // 1. Fetch user games with game metadata
-    const userGames = await prisma.userGame.findMany({
-        where: { userId },
-        include: { game: true },
-    });
+    const userGames = await withDbRetry((db) =>
+        db.userGame.findMany({ where: { userId }, include: { game: true } })
+    );
 
     // 2. Fetch play sessions for current year
     const startOfYear = new Date(currentYear, 0, 1);
     const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59);
 
-    const yearlySessions = await prisma.playSession.findMany({
-        where: {
-            userGame: { userId },
-            playedAt: {
-                gte: startOfYear,
-                lte: endOfYear,
+    const yearlySessions = await withDbRetry((db) =>
+        db.playSession.findMany({
+            where: {
+                userGame: { userId },
+                playedAt: { gte: startOfYear, lte: endOfYear },
             },
-        },
-    });
+        })
+    );
 
     // Calculations
     const totalLibraryCount = userGames.length;

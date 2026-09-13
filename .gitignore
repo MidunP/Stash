@@ -36,3 +36,10 @@ prisma/*.db-journal
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# private docs / AI workflow files - keep local only
+*.md
+.agents/
+.agent/
+_agents/
+_agent/

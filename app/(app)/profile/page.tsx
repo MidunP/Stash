@@ -1,6 +1,6 @@
 import React from "react";
 import { getCurrentUser } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { withDbRetry } from "@/lib/db/prisma";
 import { User, Shield, Download, Upload, Clock, Gamepad2, Calendar } from "lucide-react";
 import { ProfileSettingsForm } from "@/components/profile/ProfileSettingsForm";
 
@@ -14,9 +14,9 @@ export default async function ProfilePage() {
     if (!user) return null;
 
     // Fetch user aggregate stats
-    const userGames = await prisma.userGame.findMany({
-        where: { userId: user.id },
-    });
+    const userGames = await withDbRetry((db) =>
+        db.userGame.findMany({ where: { userId: user.id } })
+    );
 
     const totalGames = userGames.length;
     const totalHours = userGames.reduce((acc, g) => acc + g.hoursLogged, 0);
